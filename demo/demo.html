@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>AI Video Mix — 2API Demo</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --acc:#8b5cf6; --txt:#e6edf3; --mut:#8b949e; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,sans-serif; min-height:100vh;
+         display:flex; flex-direction:column; align-items:center; padding:32px 16px; }
+  h1 { font-size:1.5rem; margin-bottom:4px; } h1 span{ color:var(--acc); }
+  .sub { color:var(--mut); font-size:.85rem; margin-bottom:24px; }
+  .card { background:var(--card); border:1px solid #30363d; border-radius:12px; padding:20px;
+          width:100%; max-width:640px; margin-bottom:16px; }
+  textarea, select { width:100%; background:#0d1117; color:var(--txt); border:1px solid #30363d;
+          border-radius:8px; padding:10px; font-size:.95rem; margin-bottom:10px; }
+  textarea { min-height:90px; resize:vertical; }
+  .row { display:flex; gap:10px; } .row>*{ flex:1; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:12px 20px;
+           font-size:1rem; cursor:pointer; width:100%; font-weight:600; }
+  button:disabled { opacity:.5; cursor:wait; }
+  .status { margin-top:12px; color:var(--mut); font-size:.85rem; min-height:1.2em; }
+  video { width:100%; border-radius:8px; margin-top:12px; background:#000; }
+  .meta { color:var(--mut); font-size:.75rem; margin-top:8px; word-break:break-all; }
+  .err { color:#f85149; }
+</style>
+</head>
+<body>
+<h1>AI Video <span>Mix</span> — 文生视频 Demo</h1>
+<div class="sub">ai.fusion.character.merge v1.2.2 → aifusion.aritek.app 逆向 | OpenAI 兼容 2API :8913</div>
+<div class="card">
+  <textarea id="prompt" placeholder="描述你想生成的视频… 例如: a cute orange cat surfing a wave, cartoon style">a cute orange cat surfing a wave, cartoon style</textarea>
+  <div class="row">
+    <select id="ratio">
+      <option value="9:16">9:16 竖屏</option>
+      <option value="16:9">16:9 横屏</option>
+      <option value="1:1">1:1 方形</option>
+    </select>
+    <select id="res">
+      <option value="480p">480p</option>
+      <option value="720p">720p</option>
+    </select>
+  </div>
+  <br>
+  <button id="go" onclick="gen()">生成视频</button>
+  <div class="status" id="st"></div>
+  <video id="player" controls style="display:none"></video>
+  <div class="meta" id="meta"></div>
+</div>
+<script>
+async function gen(){
+  const btn=document.getElementById('go'), st=document.getElementById('st');
+  const pl=document.getElementById('player'), meta=document.getElementById('meta');
+  btn.disabled=true; pl.style.display='none'; meta.textContent='';
+  st.className='status'; st.textContent='提交任务中…';
+  try{
+    const r=await fetch('/v1/chat/completions',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:document.getElementById('prompt').value,
+        ratio:document.getElementById('ratio').value,
+        resolution:document.getElementById('res').value, wait:true})});
+    const j=await r.json();
+    if(j.error){ throw new Error(j.error.message||JSON.stringify(j)); }
+    if(j.status==='succeeded'&&j.video_url){
+      st.textContent='生成完成 ✓';
+      pl.src=j.video_url; pl.style.display='block'; pl.play();
+      meta.textContent=j.video_url;
+    }else{
+      st.textContent='仍在生成中，稍后刷新: '+j.video_url;
+      meta.textContent=j.id||'';
+    }
+  }catch(e){ st.className='status err'; st.textContent='失败: '+e.message; }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
